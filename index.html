@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JimGC-X 图形化编程IDE</title>
+    <style>
+        body {
+            font-family: 'Microsoft YaHei', sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            height: 100vh;
+        }
+        
+        #toolbox {
+            width: 200px;
+            background-color: #f0f0f0;
+            padding: 10px;
+            overflow-y: auto;
+        }
+        
+        .event {
+            background-color: #87CEFA; /* 浅蓝色 - 事件触发器 */
+            color: black;
+        }
+        
+        .condition {
+            background-color: #90EE90; /* 绿色 - 条件 */
+            color: black;
+        }
+        
+        .operation {
+            background-color: #4682B4; /* 深蓝色 - 普通操作语句 */
+            color: white;
+        }
+        
+        .value {
+            background-color: #40E0D0; /* 青色 - 取值 */
+            color: black;
+        }
+        
+        .control {
+            background-color: #FFD700; /* 黄色 - 控制操作 */
+            color: black;
+        }
+        
+        .variable {
+            background-color: #FFA500; /* 橙色 - 变量 */
+            color: black;
+        }
+        
+        .function {
+            background-color: #9370DB; /* 紫色 - 函数 */
+            color: white;
+        }
+        
+        .block {
+            padding: 8px;
+            margin: 5px 0;
+            border-radius: 4px;
+            cursor: move;
+        }
+        
+        #workspace {
+            flex: 1;
+            background-color: #fff;
+            position: relative;
+            overflow: auto;
+        }
+        
+        #code-editor {
+            width: 300px;
+            background-color: #f0f0f0;
+            padding: 10px;
+            overflow-y: auto;
+        }
+        
+        #output {
+            height: 150px;
+            background-color: #333;
+            color: #fff;
+            padding: 10px;
+            overflow-y: auto;
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+    <div id="toolbox">
+        <h3>事件触发器</h3>
+        <div class="block event" draggable="true" data-type="event" data-code="当程序开始运行时:">程序开始</div>
+        <div class="block event" draggable="true" data-type="event" data-code="当程序初始化完成时:">程序初始化</div>
+        <div class="block event" draggable="true" data-type="event" data-code="当程序即将退出时:">程序退出</div>
+        <div class="block event" draggable="true" data-type="event" data-code="当鼠标移动:">鼠标移动</div>
+        <div class="block event" draggable="true" data-type="event" data-code="当鼠标点击:">鼠标点击</div>
+        <div class="block event" draggable="true" data-type="event" data-code="当键盘按下:">键盘按下</div>
+        <div class="block event" draggable="true" data-type="event" data-code="当定时器()触发时:">定时器</div>
+        
+        <h3>条件</h3>
+        <div class="block condition" draggable="true" data-type="condition" data-code="<程序已取得管理员权限>">检查管理员权限</div>
+        <div class="block condition" draggable="true" data-type="condition" data-code="<当前系统是[Windows]>">检查系统类型</div>
+        <div class="block condition" draggable="true" data-type="condition" data-code="<网络连接可用>">检查网络连接</div>
+        
+        <h3>变量操作</h3>
+        <div class="block variable" draggable="true" data-type="variable" data-code="创建变量，名称为(%变量名%)，默认值为(0)，类型[整数]">创建变量</div>
+        <div class="block variable" draggable="true" data-type="variable" data-code="赋值变量(%变量名%)，值为(新值)">赋值变量</div>
+        
+        <h3>控制操作</h3>
+        <div class="block control" draggable="true" data-type="control" data-code="如果<条件>{">如果</div>
+        <div class="block control" draggable="true" data-type="control" data-code="重复执行{">重复</div>
+        
+        <h3>取值</h3>
+        <div class="block value" draggable="true" data-type="value" data-code="(当前系统版本)">获取系统版本</div>
+        <div class="block value" draggable="true" data-type="value" data-code="(当前用户名)">获取用户名</div>
+        <div class="block value" draggable="true" data-type="value" data-code="(当前工作目录)">获取工作目录</div>
+        
+        <h3>普通操作</h3>
+        <div class="block operation" draggable="true" data-type="operation" data-code="输出()到控制台">输出到控制台</div>
+        <div class="block operation" draggable="true" data-type="operation" data-code="创建文件到()，文件名为()">创建文件</div>
+        <div class="block operation" draggable="true" data-type="operation" data-code="删除文件()">删除文件</div>
+        
+        <h3>函数</h3>
+        <div class="block function" draggable="true" data-type="function" data-code="&&函数名()">定义函数</div>
+    </div>
+    
+    <div id="workspace"></div>
+    
+    <div id="code-editor">
+        <h3>代码编辑器</h3>
+        <textarea id="jim-code" style="width: 100%; height: 300px;"></textarea>
+        <button id="run-btn">运行</button>
+        <button id="clear-btn">清空</button>
+    </div>
+    
+    <div id="output">
+        <h3>输出</h3>
+        <div id="output-content"></div>
+    </div>
+
+    <script>
+        // 拖放功能实现
+        const workspace = document.getElementById('workspace');
+        const blocks = document.querySelectorAll('.block');
+        const codeEditor = document.getElementById('jim-code');
+        const runBtn = document.getElementById('run-btn');
+        const clearBtn = document.getElementById('clear-btn');
+        const outputContent = document.getElementById('output-content');
+        
+        blocks.forEach(block => {
+            block.addEventListener('dragstart', e => {
+                e.dataTransfer.setData('text/plain', block.dataset.code);
+            });
+        });
+        
+        workspace.addEventListener('dragover', e => {
+            e.preventDefault();
+        });
+        
+        workspace.addEventListener('drop', e => {
+            e.preventDefault();
+            const code = e.dataTransfer.getData('text/plain');
+            
+            const newBlock = document.createElement('div');
+            newBlock.className = 'block';
+            newBlock.textContent = code;
+            newBlock.style.position = 'absolute';
+            newBlock.style.left = `${e.clientX}px`;
+            newBlock.style.top = `${e.clientY}px`;
+            
+            workspace.appendChild(newBlock);
+            
+            // 更新代码编辑器
+            codeEditor.value += code + '\n';
+        });
+        
+        // 运行代码
+        runBtn.addEventListener('click', async () => {
+            const code = codeEditor.value;
+            
+            try {
+                const response = await fetch('/api/run', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ code })
+                });
+                
+                const result = await response.json();
+                outputContent.innerHTML += `执行结果: ${JSON.stringify(result)}\n`;
+            } catch (error) {
+                outputContent.innerHTML += `错误: ${error.message}\n`;
+            }
+        });
+        
+        // 清空工作区
+        clearBtn.addEventListener('click', () => {
+            workspace.innerHTML = '';
+            codeEditor.value = '';
+            outputContent.innerHTML = '';
+        });
+    </script>
+</body>
+</html>
